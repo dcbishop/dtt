@@ -1,0 +1,9 @@
+dwi
+dealwithit
+*~
+*.exe
+tmp/*
+*.sw?
+.hhhh
+.*
+!.gitignore
