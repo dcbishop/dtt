@@ -31,7 +31,7 @@ type LocalFiles struct {
 
 // Exists returns true if a file given by path exists.
 func (lf *LocalFiles) Exists(filename string) bool {
-	if _, err := os.Stat(lf.getFullPath(filename)); os.IsNotExist(err) {
+	if _, err := os.Stat(lf.getFullPath(filename)); err != nil {
 		return false
 	}
 	return true
