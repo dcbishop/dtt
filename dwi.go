@@ -3,8 +3,13 @@ package main
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"os"
 	"path"
+
+	"github.com/cep21/xdgbasedir"
+	"gopkg.in/yaml.v1"
 )
 
 func main() {
@@ -22,6 +27,7 @@ Usage:
 // FileIndex provides methods for manipulating a list of files.
 type FileIndex interface {
 	Exists(filename string) bool
+	Open(filename string) (*os.File, error)
 }
 
 // LocalFiles is a FileIndex for files in the local filesystem.
@@ -35,6 +41,11 @@ func (lf *LocalFiles) Exists(filename string) bool {
 		return false
 	}
 	return true
+}
+
+// Open opens a file or returns an error.
+func (lf *LocalFiles) Open(filename string) (*os.File, error) {
+	return os.Open(filename)
 }
 
 // GetFullPath returns the full path.
@@ -58,6 +69,15 @@ func Main(args []string, out io.Writer, eout io.Writer, fi FileIndex) {
 	if AnyFilesDontExist(eout, fi, files) {
 		return
 	}
+
+	configDir, err := xdgbasedir.ConfigHomeDirectory()
+	if err != nil {
+		return
+	}
+
+	rules := LoadRules(path.Join(configDir, "/dealwithit/rules.yaml"), fi, eout)
+
+	log.Println(rules)
 }
 
 // AnyFilesDontExist will look for each of the given files in the given FileIndex,
@@ -77,4 +97,28 @@ func AnyFilesDontExist(eout io.Writer, fi FileIndex, files []string) bool {
 // The first arg must be the executable name.
 func ParseArgs(args []string) []string {
 	return args[1:]
+}
+
+// LoadRules loads the rules file given by filename from the given FileIndex.
+func LoadRules(filename string, fi FileIndex, eout io.Writer) []map[string]string {
+	var rules []map[string]string
+	file, err := fi.Open(filename)
+	if err != nil {
+		fmt.Fprintln(eout, "Error: Could not open rules file", filename, err)
+		return rules
+	}
+
+	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		fmt.Fprintln(eout, "Error: Could not read rules file", filename, err)
+		return rules
+	}
+
+	err = yaml.Unmarshal(data, &rules)
+	if err != nil {
+		fmt.Fprintln(eout, "Error: Could not parse rules file", filename, err)
+		return rules
+	}
+
+	return rules
 }
