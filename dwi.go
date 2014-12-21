@@ -28,6 +28,7 @@ Usage:
 type FileIndex interface {
 	Exists(filename string) bool
 	Open(filename string) (*os.File, error)
+	IsDir(filename string) bool
 }
 
 // LocalFiles is a FileIndex for files in the local filesystem.
@@ -41,6 +42,15 @@ func (lf *LocalFiles) Exists(filename string) bool {
 		return false
 	}
 	return true
+}
+
+// IsDir returns true if filename points to a directory.
+func (lf *LocalFiles) IsDir(filename string) bool {
+	fileInfo, err := os.Stat(filename)
+	if err != nil {
+		return false
+	}
+	return fileInfo.IsDir()
 }
 
 // Open opens a file or returns an error.
@@ -143,7 +153,7 @@ func ForEachMatchingFile(files []string, rules Rules, out io.Writer, eout io.Wri
 			continue
 		}
 
-		ExecuteRule(f, rule, out, fi)
+		ExecuteRule(f, rule, out, eout, fi)
 
 	}
 }
@@ -169,7 +179,13 @@ func FileMatchesRule(filename string, rule Rule, eout io.Writer) bool {
 }
 
 // ExecuteRule executes the given rules on file.
-func ExecuteRule(filename string, rule Rule, out io.Writer, fi FileIndex) {
-	// [TODO]: Check destination exists and is a directory. - 2014-12-21 12:09pm
+func ExecuteRule(filename string, rule Rule, out io.Writer, eout io.Writer, fi FileIndex) {
+	dest := rule["move"]
+
+	if !fi.Exists(dest) || !fi.IsDir(dest) {
+		fmt.Fprintf(eout, "Error: Invalid directory %s\n", dest)
+		return
+	}
+
 	fmt.Fprintf(out, "mv -v \"%s\" \"%s\"\n", filename, rule["move"])
 }
