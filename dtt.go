@@ -134,7 +134,7 @@ func Main(args []string, out io.Writer, eout io.Writer, fi FileIndex) {
 		return
 	}
 
-	rules := LoadRules(path.Join(configDir, "/dealwithit/rules.yaml"), fi, eout)
+	rules := LoadRules(path.Join(configDir, "/dothething/rules.yaml"), fi, eout)
 
 	ForEachMatchingFile(files, rules, out, eout, fi)
 }

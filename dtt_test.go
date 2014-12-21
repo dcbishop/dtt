@@ -22,7 +22,7 @@ func TestMainMissingFile(t *testing.T) {
 	out := bytes.NewBufferString("")
 
 	lf := NewLocalFiles("")
-	Main([]string{"dealwithit", missingFilename}, out, out, &lf)
+	Main([]string{"dothething", missingFilename}, out, out, &lf)
 
 	if out.String() != "Error: File not found: "+missingFilename+"\n" {
 		log.Println(out.String())
