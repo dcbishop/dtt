@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
+	"regexp"
 
 	"github.com/cep21/xdgbasedir"
 	"gopkg.in/yaml.v1"
@@ -77,7 +77,7 @@ func Main(args []string, out io.Writer, eout io.Writer, fi FileIndex) {
 
 	rules := LoadRules(path.Join(configDir, "/dealwithit/rules.yaml"), fi, eout)
 
-	log.Println(rules)
+	ForEachMatchingFile(files, rules, eout, fi)
 }
 
 // AnyFilesDontExist will look for each of the given files in the given FileIndex,
@@ -99,9 +99,13 @@ func ParseArgs(args []string) []string {
 	return args[1:]
 }
 
+type Rule map[string]string
+type Rules []Rule
+
 // LoadRules loads the rules file given by filename from the given FileIndex.
-func LoadRules(filename string, fi FileIndex, eout io.Writer) []map[string]string {
-	var rules []map[string]string
+func LoadRules(filename string, fi FileIndex, eout io.Writer) Rules {
+	var rules Rules
+
 	file, err := fi.Open(filename)
 	if err != nil {
 		fmt.Fprintln(eout, "Error: Could not open rules file", filename, err)
@@ -121,4 +125,43 @@ func LoadRules(filename string, fi FileIndex, eout io.Writer) []map[string]strin
 	}
 
 	return rules
+}
+
+// ForEachMatchingFile executes a function on each file if the function match returns true.
+func ForEachMatchingFile(files []string, rules Rules, eout io.Writer, fi FileIndex) {
+	for _, f := range files {
+		matches, rule := FileMatchesRules(f, rules, eout, fi)
+
+		if !matches {
+			continue
+		}
+
+		ExecuteRule(f, rule, fi)
+
+	}
+}
+
+// FileMatchesRules if filename matches a rule given in rules returns true and the rule.
+func FileMatchesRules(filename string, rules Rules, eout io.Writer, fi FileIndex) (bool, Rule) {
+	for _, rule := range rules {
+		if FileMatchesRule(filename, rule, eout) {
+			return true, rule
+		}
+	}
+	return false, nil
+}
+
+// FileMatchesRule return true if filename matches the rule given.
+func FileMatchesRule(filename string, rule Rule, eout io.Writer) bool {
+	re, err := regexp.Compile(rule["file"])
+	if err != nil {
+		fmt.Fprintln(eout, "Error: Could not compile regexp", err)
+		return false
+	}
+	return re.MatchString(filename)
+}
+
+// ExecuteRule executes the given rules on file.
+func ExecuteRule(filename string, rule Rule, fi FileIndex) {
+	fmt.Println("DEBUG: ", filename, "matches", rule)
 }
