@@ -118,9 +118,16 @@ func LoadRules(filename string, fi FileIndex, eout io.Writer) Rules {
 		return rules
 	}
 
-	err = yaml.Unmarshal(data, &rules)
+	rules = ParseRules(data, eout)
+	return rules
+}
+
+// ParseRules parses the YAML.
+func ParseRules(data []byte, eout io.Writer) Rules {
+	var rules Rules
+	err := yaml.Unmarshal(data, &rules)
 	if err != nil {
-		fmt.Fprintln(eout, "Error: Could not parse rules file", filename, err)
+		fmt.Fprintln(eout, "Error: Could not parse rules file", err)
 		return rules
 	}
 
