@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"regexp"
 
@@ -70,14 +71,19 @@ func (lf *LocalFiles) Rename(oldpath, newpath string) error {
 
 // Move moves a directory or file to the destination directory.
 func (lf *LocalFiles) Move(oldpath, newpath string) error {
-	err := lf.Rename(oldpath, newpath)
-
-	switch err.(type) {
-	case *os.LinkError:
-		err = lf.CopyWithTemp(oldpath, newpath)
-	}
-
+	cmd := exec.Command("mv", "-v", lf.getFullPath(oldpath), lf.getFullPath(newpath))
+	out, err := cmd.Output()
+	fmt.Println(string(out))
 	return err
+
+	//err := lf.Rename(oldpath, newpath)
+
+	//switch err.(type) {
+	//case *os.LinkError:
+	//err = lf.CopyWithTemp(oldpath, newpath)
+	//}
+
+	//return err
 }
 
 // Remove removes a file.
@@ -237,7 +243,7 @@ func ExecuteRule(filename string, rule Rule, out io.Writer, eout io.Writer, fi F
 		return
 	}
 
-	fmt.Fprintf(out, "\"%s\" -> \"%s\"\n", filename, dest)
+	//fmt.Fprintf(out, "\"%s\" -> \"%s\"\n", filename, dest)
 	err := fi.Move(filename, dest)
 
 	if err != nil {
@@ -245,8 +251,8 @@ func ExecuteRule(filename string, rule Rule, out io.Writer, eout io.Writer, fi F
 		return
 	}
 
-	err = fi.Remove(filename)
-	if err != nil {
-		fmt.Fprint(eout, "Error:", err)
-	}
+	//err = fi.Remove(filename)
+	//if err != nil {
+	//fmt.Fprint(eout, "Error:", err)
+	//}
 }
