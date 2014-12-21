@@ -243,7 +243,7 @@ func ExecuteRule(filename string, rule Rule, out io.Writer, eout io.Writer, fi F
 		return
 	}
 
-	//fmt.Fprintf(out, "\"%s\" -> \"%s\"\n", filename, dest)
+	fmt.Fprintf(out, "mv -v \"%s\" \"%s\"\n", filename, dest)
 	err := fi.Move(filename, dest)
 
 	if err != nil {
