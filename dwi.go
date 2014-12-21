@@ -77,7 +77,7 @@ func Main(args []string, out io.Writer, eout io.Writer, fi FileIndex) {
 
 	rules := LoadRules(path.Join(configDir, "/dealwithit/rules.yaml"), fi, eout)
 
-	ForEachMatchingFile(files, rules, eout, fi)
+	ForEachMatchingFile(files, rules, out, eout, fi)
 }
 
 // AnyFilesDontExist will look for each of the given files in the given FileIndex,
@@ -135,7 +135,7 @@ func ParseRules(data []byte, eout io.Writer) Rules {
 }
 
 // ForEachMatchingFile executes a function on each file if the function match returns true.
-func ForEachMatchingFile(files []string, rules Rules, eout io.Writer, fi FileIndex) {
+func ForEachMatchingFile(files []string, rules Rules, out io.Writer, eout io.Writer, fi FileIndex) {
 	for _, f := range files {
 		matches, rule := FileMatchesRules(f, rules, eout, fi)
 
@@ -143,7 +143,7 @@ func ForEachMatchingFile(files []string, rules Rules, eout io.Writer, fi FileInd
 			continue
 		}
 
-		ExecuteRule(f, rule, fi)
+		ExecuteRule(f, rule, out, fi)
 
 	}
 }
@@ -169,6 +169,7 @@ func FileMatchesRule(filename string, rule Rule, eout io.Writer) bool {
 }
 
 // ExecuteRule executes the given rules on file.
-func ExecuteRule(filename string, rule Rule, fi FileIndex) {
-	fmt.Println("DEBUG: ", filename, "matches", rule)
+func ExecuteRule(filename string, rule Rule, out io.Writer, fi FileIndex) {
+	// [TODO]: Check destination exists and is a directory. - 2014-12-21 12:09pm
+	fmt.Fprintf(out, "mv -v \"%s\" \"%s\"\n", filename, rule["move"])
 }
