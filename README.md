@@ -1,5 +1,9 @@
-﻿DoTheThing
+DoTheThing
 ==========
+
+[![Build Status](https://drone.io/github.com/dcbishop/dtt/status.png)](https://drone.io/github.com/dcbishop/dtt/latest)
+[![License](http://img.shields.io/badge/license-CC0-red.svg)](https://creativecommons.org/publicdomain/zero/1.0/legalcode)
+
 Moves files to a target directories based on predefined regex rules.
 
 It's useful for moving files when your done with them, such as putting a frequently download files into an archival location after finishing looking at them.
