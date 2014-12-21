@@ -220,11 +220,17 @@ func FileMatchesRules(filename string, rules Rules, eout io.Writer, fi FileIndex
 
 // FileMatchesRule return true if filename matches the rule given.
 func FileMatchesRule(filename string, rule Rule, eout io.Writer) bool {
+	if len(rule["file"]) == 0 {
+		fmt.Fprintln(eout, "Error: Empty regexp.")
+		return false
+	}
+
 	re, err := regexp.Compile(rule["file"])
 	if err != nil {
 		fmt.Fprintln(eout, "Error: Could not compile regexp", err)
 		return false
 	}
+
 	return re.MatchString(filename)
 }
 
