@@ -9,6 +9,7 @@ import (
 	"regexp"
 
 	"github.com/cep21/xdgbasedir"
+	"github.com/termie/go-shutil"
 	"gopkg.in/yaml.v1"
 )
 
@@ -29,6 +30,9 @@ type FileIndex interface {
 	Exists(filename string) bool
 	Open(filename string) (*os.File, error)
 	IsDir(filename string) bool
+	Rename(filename string, dest string) error
+	Move(filename string, dest string) error
+	Remove(filename string) error
 }
 
 // LocalFiles is a FileIndex for files in the local filesystem.
@@ -46,7 +50,7 @@ func (lf *LocalFiles) Exists(filename string) bool {
 
 // IsDir returns true if filename points to a directory.
 func (lf *LocalFiles) IsDir(filename string) bool {
-	fileInfo, err := os.Stat(filename)
+	fileInfo, err := os.Stat(lf.getFullPath(filename))
 	if err != nil {
 		return false
 	}
@@ -55,7 +59,46 @@ func (lf *LocalFiles) IsDir(filename string) bool {
 
 // Open opens a file or returns an error.
 func (lf *LocalFiles) Open(filename string) (*os.File, error) {
-	return os.Open(filename)
+	return os.Open(lf.getFullPath(filename))
+}
+
+// Rename renames (moves) a file.
+func (lf *LocalFiles) Rename(oldpath, newpath string) error {
+	return os.Rename(lf.getFullPath(oldpath), lf.getFullPath(newpath))
+
+}
+
+// Move moves a directory or file to the destination directory.
+func (lf *LocalFiles) Move(oldpath, newpath string) error {
+	err := lf.Rename(oldpath, newpath)
+
+	switch err.(type) {
+	case *os.LinkError:
+		err = lf.CopyWithTemp(oldpath, newpath)
+	}
+
+	return err
+}
+
+// Remove removes a file.
+func (lf *LocalFiles) Remove(filename string) error {
+	return os.Remove(lf.getFullPath(filename))
+}
+
+// CopyWithTemp copies a directory to the destination.
+func (lf *LocalFiles) CopyWithTemp(oldpath, newpath string) error {
+	// [TODO]: Actually do temp stuff - 2014-12-21 01:49pm
+	src := lf.getFullPath(oldpath)
+	dst := lf.getFullPath(newpath)
+	//dstTemp := dst + ".diw-COPYING"
+	//err := shutil.CopyTree(src, dstTemp, nil)
+	err := shutil.CopyTree(src, dst, nil)
+	if err != nil {
+		return err
+	}
+	return err
+
+	//return os.Rename(dstTemp, dst)
 }
 
 // GetFullPath returns the full path.
@@ -150,6 +193,7 @@ func ForEachMatchingFile(files []string, rules Rules, out io.Writer, eout io.Wri
 		matches, rule := FileMatchesRules(f, rules, eout, fi)
 
 		if !matches {
+			fmt.Fprintln(out, "No rule for", f)
 			continue
 		}
 
@@ -186,6 +230,23 @@ func ExecuteRule(filename string, rule Rule, out io.Writer, eout io.Writer, fi F
 		fmt.Fprintf(eout, "Error: Invalid directory %s\n", dest)
 		return
 	}
+	dest = path.Join(dest, path.Base(filename))
 
-	fmt.Fprintf(out, "mv -v \"%s\" \"%s\"\n", filename, rule["move"])
+	if fi.Exists(dest) {
+		fmt.Fprintln(eout, "Error: File already exists", dest)
+		return
+	}
+
+	fmt.Fprintf(out, "\"%s\" -> \"%s\"\n", filename, dest)
+	err := fi.Move(filename, dest)
+
+	if err != nil {
+		fmt.Fprint(eout, "Error:", err)
+		return
+	}
+
+	err = fi.Remove(filename)
+	if err != nil {
+		fmt.Fprint(eout, "Error:", err)
+	}
 }
