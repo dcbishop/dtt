@@ -20,10 +20,10 @@ func main() {
 }
 
 // The programs usage help.
-var Usage = `dwi.
+var Usage = `dtt.
 
 Usage:
-	dwi <file>
+	dtt <file>
 `
 
 // FileIndex provides methods for manipulating a list of files.
