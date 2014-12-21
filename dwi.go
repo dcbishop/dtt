@@ -203,7 +203,11 @@ func ForEachMatchingFile(files []string, rules Rules, out io.Writer, eout io.Wri
 			continue
 		}
 
-		ExecuteRule(f, rule, out, eout, fi)
+		err := ExecuteRule(f, rule, out, eout, fi)
+		if err != nil {
+			fmt.Fprintf(eout, "Aborting...")
+			return
+		}
 
 	}
 }
@@ -235,18 +239,18 @@ func FileMatchesRule(filename string, rule Rule, eout io.Writer) bool {
 }
 
 // ExecuteRule executes the given rules on file.
-func ExecuteRule(filename string, rule Rule, out io.Writer, eout io.Writer, fi FileIndex) {
+func ExecuteRule(filename string, rule Rule, out io.Writer, eout io.Writer, fi FileIndex) error {
 	dest := rule["move"]
 
 	if !fi.Exists(dest) || !fi.IsDir(dest) {
 		fmt.Fprintf(eout, "Error: Invalid directory %s\n", dest)
-		return
+		return nil
 	}
 	dest = path.Join(dest, path.Base(filename))
 
 	if fi.Exists(dest) {
 		fmt.Fprintln(eout, "Error: File already exists", dest)
-		return
+		return nil
 	}
 
 	fmt.Fprintf(out, "mv -v \"%s\" \"%s\"\n", filename, dest)
@@ -254,11 +258,12 @@ func ExecuteRule(filename string, rule Rule, out io.Writer, eout io.Writer, fi F
 
 	if err != nil {
 		fmt.Fprint(eout, "Error:", err)
-		return
+		return err
 	}
 
 	//err = fi.Remove(filename)
 	//if err != nil {
 	//fmt.Fprint(eout, "Error:", err)
 	//}
+	return nil
 }
