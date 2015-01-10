@@ -22,7 +22,7 @@ File entries are based on Go's [regexp](http://golang.org/pkg/regexp/syntax/).
     - file: SomeFile
       move: /mnt/somewhere/else
 
-    - file: (?i)CaseInsensative
+    - file: (?i)CaseInsensitive
       move: /mnt/target/location
 
     - file: Dots.Are.Any.Characters.Could.Be.Spaces.UnderScore.OrActualDots
