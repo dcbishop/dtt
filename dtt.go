@@ -10,13 +10,13 @@ import (
 	"regexp"
 
 	"github.com/cep21/xdgbasedir"
+	"github.com/spf13/afero"
 	"github.com/termie/go-shutil"
 	"gopkg.in/yaml.v1"
 )
 
 func main() {
-	lf := NewLocalFiles("")
-	Main(os.Args, os.Stdout, os.Stderr, &lf)
+	Main(os.Args, os.Stdout, os.Stderr, &afero.OsFs{})
 }
 
 // The programs usage help.
@@ -26,76 +26,36 @@ Usage:
 	dtt <file>
 `
 
-// FileIndex provides methods for manipulating a list of files.
-type FileIndex interface {
-	Exists(filename string) bool
-	Open(filename string) (*os.File, error)
-	IsDir(filename string) bool
-	Rename(filename string, dest string) error
-	Move(filename string, dest string) error
-	Remove(filename string) error
-}
-
-// LocalFiles is a FileIndex for files in the local filesystem.
-type LocalFiles struct {
-	Root string
-}
-
 // Exists returns true if a file given by path exists.
-func (lf *LocalFiles) Exists(filename string) bool {
-	if _, err := os.Stat(lf.getFullPath(filename)); err != nil {
+func Exists(fs afero.Fs, filename string) bool {
+	if _, err := fs.Stat(filename); err != nil {
 		return false
 	}
 	return true
 }
 
 // IsDir returns true if filename points to a directory.
-func (lf *LocalFiles) IsDir(filename string) bool {
-	fileInfo, err := os.Stat(lf.getFullPath(filename))
+func IsDir(fs afero.Fs, filename string) bool {
+	fileInfo, err := fs.Stat(filename)
 	if err != nil {
 		return false
 	}
 	return fileInfo.IsDir()
 }
 
-// Open opens a file or returns an error.
-func (lf *LocalFiles) Open(filename string) (*os.File, error) {
-	return os.Open(lf.getFullPath(filename))
-}
-
-// Rename renames (moves) a file.
-func (lf *LocalFiles) Rename(oldpath, newpath string) error {
-	return os.Rename(lf.getFullPath(oldpath), lf.getFullPath(newpath))
-
-}
-
 // Move moves a directory or file to the destination directory.
-func (lf *LocalFiles) Move(oldpath, newpath string) error {
-	cmd := exec.Command("mv", "-v", lf.getFullPath(oldpath), lf.getFullPath(newpath))
+func Move(fs afero.OsFs, oldpath, newpath string) error {
+	cmd := exec.Command("mv", "-v", oldpath, newpath)
 	out, err := cmd.Output()
 	fmt.Println(string(out))
 	return err
-
-	//err := lf.Rename(oldpath, newpath)
-
-	//switch err.(type) {
-	//case *os.LinkError:
-	//err = lf.CopyWithTemp(oldpath, newpath)
-	//}
-
-	//return err
-}
-
-// Remove removes a file.
-func (lf *LocalFiles) Remove(filename string) error {
-	return os.Remove(lf.getFullPath(filename))
 }
 
 // CopyWithTemp copies a directory to the destination.
-func (lf *LocalFiles) CopyWithTemp(oldpath, newpath string) error {
+func CopyWithTemp(oldpath, newpath string) error {
 	// [TODO]: Actually do temp stuff - 2014-12-21 01:49pm
-	src := lf.getFullPath(oldpath)
-	dst := lf.getFullPath(newpath)
+	src := oldpath
+	dst := newpath
 	//dstTemp := dst + ".diw-COPYING"
 	//err := shutil.CopyTree(src, dstTemp, nil)
 	err := shutil.CopyTree(src, dst, nil)
@@ -107,18 +67,8 @@ func (lf *LocalFiles) CopyWithTemp(oldpath, newpath string) error {
 	//return os.Rename(dstTemp, dst)
 }
 
-// GetFullPath returns the full path.
-func (lf *LocalFiles) getFullPath(filename string) string {
-	return path.Join(lf.Root, filename)
-}
-
-// NewLocalFiles creates and initializes a new LocalFiles with a given path root.
-func NewLocalFiles(root string) LocalFiles {
-	return LocalFiles{root}
-}
-
 // Main function.
-func Main(args []string, out io.Writer, eout io.Writer, fi FileIndex) {
+func Main(args []string, out io.Writer, eout io.Writer, fi afero.Fs) {
 	if len(args) < 2 {
 		fmt.Fprintln(out, Usage)
 		return
@@ -139,12 +89,12 @@ func Main(args []string, out io.Writer, eout io.Writer, fi FileIndex) {
 	ForEachMatchingFile(files, rules, out, eout, fi)
 }
 
-// AnyFilesDontExist will look for each of the given files in the given FileIndex,
+// AnyFilesDontExist will look for each of the given files in the given afero.Fs,
 // output an error to eout for any file that doesn't exist and return true if where any missing.
-func AnyFilesDontExist(eout io.Writer, fi FileIndex, files []string) bool {
+func AnyFilesDontExist(eout io.Writer, fi afero.Fs, files []string) bool {
 	err := false
 	for _, f := range files {
-		if !fi.Exists(f) {
+		if !Exists(fi, f) {
 			fmt.Fprintln(eout, "Error: File not found:", f)
 			err = true
 		}
@@ -161,8 +111,8 @@ func ParseArgs(args []string) []string {
 type Rule map[string]string
 type Rules []Rule
 
-// LoadRules loads the rules file given by filename from the given FileIndex.
-func LoadRules(filename string, fi FileIndex, eout io.Writer) Rules {
+// LoadRules loads the rules file given by filename from the given afero.Fs.
+func LoadRules(filename string, fi afero.Fs, eout io.Writer) Rules {
 	var rules Rules
 
 	file, err := fi.Open(filename)
@@ -194,7 +144,7 @@ func ParseRules(data []byte, eout io.Writer) Rules {
 }
 
 // ForEachMatchingFile executes a function on each file if the function match returns true.
-func ForEachMatchingFile(files []string, rules Rules, out io.Writer, eout io.Writer, fi FileIndex) {
+func ForEachMatchingFile(files []string, rules Rules, out io.Writer, eout io.Writer, fi afero.Fs) {
 	for _, f := range files {
 		matches, rule := FileMatchesRules(f, rules, eout, fi)
 
@@ -213,7 +163,7 @@ func ForEachMatchingFile(files []string, rules Rules, out io.Writer, eout io.Wri
 }
 
 // FileMatchesRules if filename matches a rule given in rules returns true and the rule.
-func FileMatchesRules(filename string, rules Rules, eout io.Writer, fi FileIndex) (bool, Rule) {
+func FileMatchesRules(filename string, rules Rules, eout io.Writer, fi afero.Fs) (bool, Rule) {
 	for _, rule := range rules {
 		if FileMatchesRule(filename, rule, eout) {
 			return true, rule
@@ -239,31 +189,28 @@ func FileMatchesRule(filename string, rule Rule, eout io.Writer) bool {
 }
 
 // ExecuteRule executes the given rules on file.
-func ExecuteRule(filename string, rule Rule, out io.Writer, eout io.Writer, fi FileIndex) error {
+func ExecuteRule(filename string, rule Rule, out io.Writer, eout io.Writer, fi afero.Fs) error {
 	dest := rule["move"]
 
-	if !fi.Exists(dest) || !fi.IsDir(dest) {
+	if !Exists(fi, dest) || !IsDir(fi, dest) {
 		fmt.Fprintf(eout, "Error: Invalid directory %s\n", dest)
 		return nil
 	}
 	dest = path.Join(dest, path.Base(filename))
 
-	if fi.Exists(dest) {
+	if Exists(fi, dest) {
 		fmt.Fprintln(eout, "Error: File already exists", dest)
 		return nil
 	}
 
 	fmt.Fprintf(out, "mv -v \"%s\" \"%s\"\n", filename, dest)
-	err := fi.Move(filename, dest)
+	osfs := fi.(*afero.OsFs)
+	err := Move(*osfs, filename, dest)
 
 	if err != nil {
 		fmt.Fprint(eout, "Error:", err)
 		return err
 	}
 
-	//err = fi.Remove(filename)
-	//if err != nil {
-	//fmt.Fprint(eout, "Error:", err)
-	//}
 	return nil
 }
