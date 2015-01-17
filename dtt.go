@@ -51,9 +51,10 @@ func Move(fs afero.OsFs, oldpath, newpath string) error {
 	return err
 }
 
-// CopyWithTemp copies a directory to the destination.
-func CopyWithTemp(oldpath, newpath string) error {
-	// [TODO]: Actually do temp stuff - 2014-12-21 01:49pm
+// Copy copies a directory to the destination.
+func Copy(oldpath, newpath string) error {
+	// [TODO]: Copy with a temp filename incase operation aborted part of
+	// the way through. - 2014-12-21 01:49pm
 	src := oldpath
 	dst := newpath
 	//dstTemp := dst + ".diw-COPYING"
